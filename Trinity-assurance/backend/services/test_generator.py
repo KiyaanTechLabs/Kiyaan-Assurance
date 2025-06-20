@@ -1,19 +1,19 @@
 import os
 import re
+import logging
 from backend.utils.git_ops import get_repo_diff, clone_or_pull_repo
 from backend.utils.prompts import TEST_GEN_PROMPT_TEMPLATE
-from openai import OpenAI
-import logging
+from groq import Groq  # ✅ Switched from openai to groq
 
 # Initialize logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 class TestGenerator:
-    def __init__(self, api_key=None, model="gpt-4"):
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+    def __init__(self, api_key=None, model="llama3-8b-8192"):  # ✅ Default to LLaMA 3
+        self.api_key = api_key or os.getenv("GROQ_API_KEY")
         self.model = model
-        self.client = OpenAI(api_key=self.api_key)
+        self.client = Groq(api_key=self.api_key)
 
     def sanitize_filename(self, name):
         """Remove unsafe characters from filename"""
@@ -36,18 +36,18 @@ class TestGenerator:
             diff=diff_output,
         )
 
-        logger.info("[Trinity] Sending prompt to OpenAI for test generation...")
+        logger.info("[Trinity] Sending prompt to Groq for test generation...")
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
+                temperature=0.3,
                 max_tokens=1000
             )
             test_code = response.choices[0].message.content
             logger.info("[Trinity] Test code successfully generated.")
 
-            #  Save to /tests/ directory
+            # Save test file
             os.makedirs("tests", exist_ok=True)
             safe_name = self.sanitize_filename(file_path or repo_url.split("/")[-1])
             test_file_name = f"test_{safe_name}.py"
